@@ -1,5 +1,5 @@
 ### --- Build mzbench artifacts --- ###
-FROM erlang:20.3.8-alpine as build
+FROM erlang:22.1.8-alpine as build
 
 ENV ORIG_PATH=$PATH
 ENV CODE_LOADING_MODE=interactive
