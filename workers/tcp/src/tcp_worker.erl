@@ -109,8 +109,7 @@ request_sync(#s{socket = Socket} = State, _Meta, Message) ->
   {nil, State}.
 
 send_n_get_sync(Socket, Message) ->
-  gen_tcp:send(Socket, Message),
-    case gen_tcp:recv(Socket, 0, ?Timeout) of
-        {ok, _Binary} -> ok;
-        E -> E
-    end.
+  case gen_tcp:send(Socket, Message) of
+      {ok, _Binary} -> ok;
+      E -> E
+  end.
