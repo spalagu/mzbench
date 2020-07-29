@@ -50,7 +50,8 @@ request_sync(#s{socket = Socket} = State, _Meta, Host, Port, Message) ->
   {Latency, E} = timer:tc(?MODULE, send_n_get_sync, [Socket, Host, Port, Message]),
   mzb_metrics:notify({"latency", histogram}, Latency div 1000),
   case E of
-      ok -> mzb_metrics:notify({"request.ok", counter}, 1);
+      ok -> mzb_metrics:notify({"request.ok", counter}, 1),
+            gen_udp:close(Socket);
       E -> lager:error("Request sync error: ~p", [E]),
            mzb_metrics:notify({"request.error", counter}, 1)
   end,
@@ -61,6 +62,3 @@ send_n_get_sync(Socket, Host, Port, Message) ->
       {ok, _Binary} -> ok;
       E -> E
   end.
-
-close_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_udp:close(Socket); true -> ok end.

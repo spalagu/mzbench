@@ -4,11 +4,10 @@
          metrics/0,
          connect/4,
          connect_sync_keepalive/4,
+         request_sync_keepalive/3,
          connect_sync/4,
          request_sync/3,
-         send_n_get_sync/2,
-         close_sync/2,
-         shutdown_sync/2,
+         connect_and_send/3,
          request/3,
          wait_finish/2,
          sender/2,
@@ -40,9 +39,8 @@ metrics() ->
         {group, "Summary", [
             {graph, #{title => "Requests",
                       metrics => [{"request.ok", counter}, {"request.error", counter}]}},
-            {graph, #{title => "Latencies",
-                      units => "msec",
-                      metrics => [{"latency", histogram}]}}
+            {graph, #{title => "Connects",
+                      metrics => [{"connect.ok", counter}, {"connect.error", counter}, {"connect.current", counter}]}}
         ]}
     ].
 
@@ -101,24 +99,40 @@ send_n_get(Socket, Host, Port, Message) ->
 %% due to coordinated omission problem
 
 connect_sync_keepalive(State, _Meta, Host, Port) ->
-    {ok, Socket} = gen_tcp:connect(Host, Port, ?Options),
+    {E, Socket} = gen_tcp:connect(Host, Port, ?Options),
+    case E of
+        ok -> mzb_metrics:notify({"connect.ok", counter}, 1);
+        E -> lager:error("connect error: ~p", [E]),
+             mzb_metrics:notify({"request.error", counter}, 1)
+    end,
     {nil, State#s{socket = Socket}}.
-
-shutdown_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_tcp:shutdown(Sock, read_write); true -> ok end.
 
 connect_sync(State, _Meta, Host, Port) ->
-    {ok, Socket} = gen_tcp:connect(Host, Port, ?OptionsSimple),
+    {E, Socket} = gen_tcp:connect(Host, Port, ?OptionsSimple),
+    case E of
+        ok -> mzb_metrics:notify({"connect.ok", counter}, 1);
+        E -> lager:error("connect error: ~p", [E]),
+             mzb_metrics:notify({"request.error", counter}, 1)
+    end,
     {nil, State#s{socket = Socket}}.
-
-close_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end.
 
 request_sync(State, Meta, Message) when is_list(Message) ->
   request_sync(State, Meta, list_to_binary(Message));
 request_sync(#s{socket = Socket} = State, _Meta, Message) ->
-  {Latency, E} = timer:tc(?MODULE, send_n_get_sync, [Socket, Message]),
-  mzb_metrics:notify({"latency", histogram}, Latency div 1000),
+  E = gen_tcp:send(Socket, Message),
+  case E of
+      ok -> mzb_metrics:notify({"request.ok", counter}, 1),
+            gen_tcp:close(Socket);
+      E -> lager:error("Request sync error: ~p", [E]),
+           mzb_metrics:notify({"request.error", counter}, 1),
+           gen_tcp:close(Socket)
+  end,
+  {nil, State}.
+
+request_sync_keepalive(State, Meta, Message) when is_list(Message) ->
+  request_sync_keepalive(State, Meta, list_to_binary(Message));
+request_sync_keepalive(#s{socket = Socket} = State, _Meta, Message) ->
+  E = gen_tcp:send(Socket, Message),
   case E of
       ok -> mzb_metrics:notify({"request.ok", counter}, 1);
       E -> lager:error("Request sync error: ~p", [E]),
@@ -126,8 +140,22 @@ request_sync(#s{socket = Socket} = State, _Meta, Message) ->
   end,
   {nil, State}.
 
-send_n_get_sync(Socket, Message) ->
-  case gen_tcp:send(Socket, Message) of
-      {ok, _Binary} -> ok;
-      E -> E
+
+connect_and_send(Host, Port, Message) ->
+  {E, Socket} = gen_tcp:connect(Host, Port, ?OptionsSimple),
+  case E of
+      ok -> mzb_metrics:notify({"connect.ok", counter}, 1),
+            mzb_metrics:notify({"connect.current", counter}, 1),
+            {E, Reason} = gen_tcp:send(Socket, Message),
+            case E of
+                ok -> mzb_metrics:notify({"request.ok", counter}, 1),
+                      gen_tcp:close(Socket),
+                      mzb_metrics:notify({"connect.current", counter}, -1);
+                E -> lager:error("Request sync error: ~p", [Reason]),
+                     mzb_metrics:notify({"request.error", counter}, 1),
+                     gen_tcp:close(Socket),
+                     mzb_metrics:notify({"connect.current", counter}, -1)
+            end;
+      E -> lager:error("connect error: ~p", [Socket]),
+            mzb_metrics:notify({"request.error", counter}, 1)
   end.

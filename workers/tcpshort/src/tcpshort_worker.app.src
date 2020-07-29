@@ -1,0 +1,11 @@
+%% -*- mode: erlang -*-
+{application, tcpshort_worker,
+ [
+  {description, "TCP short connection worker"},
+  {vsn, "1.0.0"},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.

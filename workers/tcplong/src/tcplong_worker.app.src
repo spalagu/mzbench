@@ -1,0 +1,11 @@
+%% -*- mode: erlang -*-
+{application, tcplong_worker,
+ [
+  {description, "TCP long connection worker"},
+  {vsn, "1.0.0"},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
