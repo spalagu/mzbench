@@ -5,6 +5,7 @@
          connect_sync/2,
          request_sync/3,
          send_n_get_sync/2,
+         close_sync/0,
          close_sync/2]).
 
 -define(Options, [

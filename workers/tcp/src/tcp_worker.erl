@@ -66,11 +66,11 @@ sender(Host, Port) ->
 
 sender(Socket, Host, Port) ->
   receive
-    {request, Start, Message} -> Socket = send_n_get(Socket, Host, Port, Message),
+    {request, Start, Message} -> Socket2 = send_n_get(Socket, Host, Port, Message),
                         mzb_metrics:notify({"latency", histogram}, os:system_time(milli_seconds) - Start),
-                        sender(Socket, Host, Port);
-    % close -> if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end,
-    %          sender(undefined, Host, Port);
+                        sender(Socket2, Host, Port);
+    close -> if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end,
+             sender(undefined, Host, Port);
     Message -> lager:error("Unexpected message ~p", [Message]), sender(Socket, Host, Port)
   end.
 
@@ -80,10 +80,14 @@ connect(Host, Port) ->
       _ -> undefined end.
 
 send_n_get(Socket, Host, Port, Message) ->
-  case gen_tcp:send(Socket, Message) of
-      {ok, _Binary} -> mzb_metrics:notify({"request.ok", counter}, 1);
-      E -> E
-  end.
+  Socket2 = if Socket == undefined -> connect(Host, Port); true -> Socket end,
+  if Socket2 == undefined -> mzb_metrics:notify({"request.error", counter}, 1), undefined;
+     true -> gen_tcp:send(Socket2, Message),
+             case gen_tcp:recv(Socket2, 0, ?Timeout) of
+                {ok, _Binary} -> mzb_metrics:notify({"request.ok", counter}, 1), Socket2;
+                _ -> gen_tcp:close(Socket2), mzb_metrics:notify({"request.error", counter}, 1),
+                undefined end
+    end.
 
 %% The following functions are synchronous
 %% They are not recommended to use if you have big difference between percentile levels
@@ -112,5 +116,4 @@ send_n_get_sync(Socket, Message) ->
   end.
 
 close_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end
-  {nil, State}.
+  if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end.
