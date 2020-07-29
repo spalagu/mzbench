@@ -1,0 +1,11 @@
+%% -*- mode: erlang -*-
+{application, udp_worker,
+ [
+  {description, "UDP worker"},
+  {vsn, "1.0.0"},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.

@@ -6,7 +6,7 @@
          connect_sync/4,
          request_sync/3,
          send_n_get_sync/2,
-         close_sync/1,
+         close_sync/2,
          request/3,
          wait_finish/2,
          sender/2,
@@ -111,5 +111,6 @@ send_n_get_sync(Socket, Message) ->
       E -> E
   end.
 
-close_sync(#s{socket = Socket} = State) ->
+close_sync(#s{socket = Socket} = State, _Meta) ->
   if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end
+  {nil, State}.
