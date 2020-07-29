@@ -26,6 +26,8 @@ metrics() ->
         {group, "Summary", [
             {graph, #{title => "Requests",
                       metrics => [{"request.ok", counter}, {"request.error", counter}]}},
+            {graph, #{title => "Reconnects",
+                      metrics => [{"reconnect", counter}]}},
             {graph, #{title => "Connects",
                       metrics => [{"connect.ok", counter}, {"connect.error", counter}, {"connect.current", counter}]}}
         ]}
@@ -45,7 +47,9 @@ connect(State, _Meta, Host, Port) ->
 request(State, Meta, Message) when is_list(Message) ->
   request(State, Meta, list_to_binary(Message));
 request(#s{socket = Socket} = State, _Meta, Message) ->
-  E = gen_tcp:send(Socket, Message),
+  Socket2 = if Socket == undefined -> 
+    connect(State, _Meta, Host, Port), mzb_metrics:notify({"reconnect", counter}, 1); true -> Socket end,
+  E = gen_tcp:send(Socket2, Message),
   case E of
       ok -> mzb_metrics:notify({"request.ok", counter}, 1);
       E -> lager:error("Request sync error: ~p", [E]),
