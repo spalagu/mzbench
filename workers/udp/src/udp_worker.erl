@@ -5,7 +5,6 @@
          connect_sync/2,
          request_sync/3,
          send_n_get_sync/2,
-         close_sync/0,
          close_sync/2]).
 
 -define(Options, [
@@ -64,5 +63,4 @@ send_n_get_sync(Socket, Host, Port, Message) ->
   end.
 
 close_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_udp:close(Socket); true -> ok end
-  {nil, State}.
+  if Socket =/= undefined -> gen_udp:close(Socket); true -> ok end.

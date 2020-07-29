@@ -3,14 +3,21 @@
 -export([initial_state/0,
          metrics/0,
          connect/4,
+         connect_sync_keepalive/4,
          connect_sync/4,
          request_sync/3,
          send_n_get_sync/2,
          close_sync/2,
+         shutdown_sync/2,
          request/3,
          wait_finish/2,
          sender/2,
          send_n_get/4]).
+
+-define(OptionsSimple, [
+    binary,
+    {packet, 0}
+]).
 
 -define(Options, [
     binary,
@@ -93,9 +100,19 @@ send_n_get(Socket, Host, Port, Message) ->
 %% They are not recommended to use if you have big difference between percentile levels
 %% due to coordinated omission problem
 
-connect_sync(State, _Meta, Host, Port) ->
+connect_sync_keepalive(State, _Meta, Host, Port) ->
     {ok, Socket} = gen_tcp:connect(Host, Port, ?Options),
     {nil, State#s{socket = Socket}}.
+
+shutdown_sync(#s{socket = Socket} = State, _Meta) ->
+  if Socket =/= undefined -> gen_tcp:shutdown(Sock, read_write); true -> ok end.
+
+connect_sync(State, _Meta, Host, Port) ->
+    {ok, Socket} = gen_tcp:connect(Host, Port, ?OptionsSimple),
+    {nil, State#s{socket = Socket}}.
+
+close_sync(#s{socket = Socket} = State, _Meta) ->
+  if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end.
 
 request_sync(State, Meta, Message) when is_list(Message) ->
   request_sync(State, Meta, list_to_binary(Message));
@@ -114,6 +131,3 @@ send_n_get_sync(Socket, Message) ->
       {ok, _Binary} -> ok;
       E -> E
   end.
-
-close_sync(#s{socket = Socket} = State, _Meta) ->
-  if Socket =/= undefined -> gen_tcp:close(Socket); true -> ok end.
