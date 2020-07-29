@@ -2,7 +2,7 @@
 
 -export([initial_state/0,
          metrics/0,
-         connect_and_send/3]).
+         connect_and_send/5]).
 
 -define(Options, [
     binary,
@@ -29,7 +29,7 @@ metrics() ->
 
 initial_state() -> #s{}.
 
-connect_and_send(Host, Port, Message) ->
+connect_and_send(State, _Meta, Host, Port, Message) ->
   {E, Socket} = gen_tcp:connect(Host, Port, ?Options),
   case E of
       ok -> mzb_metrics:notify({"connect.ok", counter}, 1),
@@ -46,4 +46,5 @@ connect_and_send(Host, Port, Message) ->
             end;
       E -> lager:error("connect error: ~p", [Socket]),
             mzb_metrics:notify({"request.error", counter}, 1)
-  end.
+  end,
+  {nil, State}.

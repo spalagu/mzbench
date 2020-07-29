@@ -18,7 +18,8 @@
 
 -record(s, {
     socket = undefined,
-    sender = undefined
+    host = undefined,
+    port = undefined
 }).
 
 metrics() ->
@@ -42,11 +43,11 @@ connect(State, _Meta, Host, Port) ->
         E -> lager:error("connect error: ~p", [E]),
              mzb_metrics:notify({"request.error", counter}, 1)
     end,
-    {nil, State#s{socket = Socket}}.
+    {nil, State#s{socket = Socket, host = Host, port = Port}}.
 
 request(State, Meta, Message) when is_list(Message) ->
   request(State, Meta, list_to_binary(Message));
-request(#s{socket = Socket} = State, _Meta, Message) ->
+request(#s{socket = Socket, host = Host, port = Port} = State, _Meta, Message) ->
   Socket2 = if Socket == undefined -> 
     connect(State, _Meta, Host, Port), mzb_metrics:notify({"reconnect", counter}, 1); true -> Socket end,
   E = gen_tcp:send(Socket2, Message),
