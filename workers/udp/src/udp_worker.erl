@@ -30,7 +30,6 @@ metrics() ->
 
 initial_state() -> #s{}.
 
-
 connect(State, _Meta) ->
     {Result, Socket} = gen_udp:open(0, ?Options),
     case Result of
@@ -41,9 +40,9 @@ connect(State, _Meta) ->
     end,
     {nil, State#s{socket = Socket}}.
 
-request(State, Meta, Message, Host, Port) when is_list(Message) ->
-  request(State, Meta, list_to_binary(Message), Host, Port);
-request(#s{socket = Socket} = State, _Meta, Message, Host, Port) ->
+request(State, Meta, Host, Port, Message) when is_list(Message) ->
+  request(State, Meta, Host, Port, list_to_binary(Message));
+request(#s{socket = Socket} = State, _Meta, Host, Port, Message) ->
   if Socket =/= undefined -> 
     Result = gen_udp:send(Socket, Host, Port, Message),
     case Result of
