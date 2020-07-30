@@ -22,8 +22,10 @@ metrics() ->
         {group, "Summary", [
             {graph, #{title => "Requests",
                       metrics => [{"request.ok", counter}, {"request.error", counter}]}},
+            {graph, #{title => "Current",
+                      metrics => [{"connect.current", counter}]}},
             {graph, #{title => "Connects",
-                      metrics => [{"connect.ok", counter}, {"connect.error", counter}, {"connect.current", counter}]}}
+                      metrics => [{"connect.ok", counter}, {"connect.error", counter}]}}
         ]}
     ].
 

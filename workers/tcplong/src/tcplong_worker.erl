@@ -25,23 +25,25 @@
 metrics() ->
     [
         {group, "Summary", [
-            {graph, #{title => "Requests",
-                      metrics => [{"request.ok", counter}, {"request.error", counter}]}},
+            {graph, #{title => "Current",
+                      metrics => [{"connect.current", counter}]}},
             {graph, #{title => "Reconnects",
                       metrics => [{"reconnect", counter}]}},
+            {graph, #{title => "Requests",
+                      metrics => [{"request.ok", counter}, {"request.error", counter}]}},
             {graph, #{title => "Connects",
-                      metrics => [{"connect.ok", counter}, {"connect.error", counter}, {"connect.current", counter}]}}
+                      metrics => [{"connect.ok", counter}, {"connect.error", counter}]}}
         ]}
     ].
 
 initial_state() -> #s{}.
 
 connect(State, _Meta, Host, Port) ->
-    {E, Socket} = gen_tcp:connect(Host, Port, ?Options),
-    case E of
+    {Result, Socket} = gen_tcp:connect(Host, Port, ?Options),
+    case Result of
         ok -> mzb_metrics:notify({"connect.ok", counter}, 1);
-        E -> lager:error("connect error: ~p", [E]),
-             mzb_metrics:notify({"request.error", counter}, 1)
+        error -> lager:error("connect error: ~p", [Socket]),
+             mzb_metrics:notify({"connect.error", counter}, 1)
     end,
     {nil, State#s{socket = Socket, host = Host, port = Port}}.
 
@@ -50,10 +52,10 @@ request(State, Meta, Message) when is_list(Message) ->
 request(#s{socket = Socket, host = Host, port = Port} = State, _Meta, Message) ->
   Socket2 = if Socket == undefined -> 
     connect(State, _Meta, Host, Port), mzb_metrics:notify({"reconnect", counter}, 1); true -> Socket end,
-  E = gen_tcp:send(Socket2, Message),
-  case E of
+  Result = gen_tcp:send(Socket2, Message),
+  case Result of
       ok -> mzb_metrics:notify({"request.ok", counter}, 1);
-      E -> lager:error("Request sync error: ~p", [E]),
+      {error, Reason} -> lager:error("Request sync error: ~p", [Reason]),
            mzb_metrics:notify({"request.error", counter}, 1)
   end,
   {nil, State}.
