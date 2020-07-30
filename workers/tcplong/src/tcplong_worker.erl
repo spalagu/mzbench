@@ -25,8 +25,6 @@
 metrics() ->
     [
         {group, "Summary", [
-            {graph, #{title => "Current",
-                      metrics => [{"connect.current", counter}]}},
             {graph, #{title => "Reconnects",
                       metrics => [{"reconnect", counter}]}},
             {graph, #{title => "Requests",
