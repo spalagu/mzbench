@@ -3,7 +3,8 @@
 -export([initial_state/0,
          metrics/0,
          connect/4,
-         request/3]).
+         request/3,
+         reconnect/4]).
 
 -define(Options, [
     binary,
@@ -52,8 +53,13 @@ request(#s{socket = Socket, host = Host, port = Port} = State, _Meta, Message) -
     connect(State, _Meta, Host, Port), mzb_metrics:notify({"reconnect", counter}, 1); true -> Socket end,
   Result = gen_tcp:send(Socket2, Message),
   case Result of
-      ok -> mzb_metrics:notify({"request.ok", counter}, 1);
+      ok -> mzb_metrics:notify({"request.ok", counter}, 1),
+            {nil, State};
       {error, Reason} -> lager:error("Request sync error: ~p", [Reason]),
-           mzb_metrics:notify({"request.error", counter}, 1)
-  end,
-  {nil, State}.
+           mzb_metrics:notify({"request.error", counter}, 1),
+           reconnect(State, _Meta, Host, Port)
+  end.
+
+reconnect(State, _Meta, Host, Port) ->
+  mzb_metrics:notify({"reconnect", counter}, 1),
+  connect(initial_state(), _Meta, Host, Port).
